@@ -21,7 +21,15 @@ function subtitle(n: TabNote, instrument: string): string {
   return n.hand ?? ''
 }
 
-function EventCard({ ev, instrument, active }: { ev: TabEvent; instrument: string; active: boolean }) {
+interface CardProps {
+  ev: TabEvent
+  instrument: string
+  active: boolean
+  selectedNote: number | null
+  onSelect: (note: number) => void
+}
+
+function EventCard({ ev, instrument, active, selectedNote, onSelect }: CardProps) {
   return (
     <div
       className={`flex flex-col gap-1 rounded-xl p-1 transition ${active ? 'bg-indigo-100 ring-2 ring-indigo-500' : ''}`}
@@ -29,23 +37,47 @@ function EventCard({ ev, instrument, active }: { ev: TabEvent; instrument: strin
     >
       {ev.notes.map((n, i) => {
         const display = instrument === 'guitare' && n.label !== '?' ? `${n.fret}` : n.label
+        const conf = n.confidence ?? 1
+        const corrected = n.corrected_from != null
+        const border = corrected ? '!border-emerald-500 ring-1 ring-emerald-300' : n.uncertain ? 'border-dashed' : ''
         return (
-          <div
+          <button
+            type="button"
             key={i}
-            title={[n.detail, `${n.french} (${n.name})`, n.issue].filter(Boolean).join('\n')}
-            className={`rounded-lg border-2 px-2 py-1 text-center ${noteStyle(n, instrument)}`}
+            onClick={() => onSelect(i)}
+            title={[n.detail, `${n.french} (${n.name})`, n.issue, ...(n.uncertain_reasons ?? []),
+              corrected ? 'Corrigée par vous' : `Confiance ${Math.round(conf * 100)} %`].filter(Boolean).join('\n')}
+            className={`relative rounded-lg border-2 px-2 py-1 text-center transition hover:shadow ${noteStyle(n, instrument)} ${border} ${selectedNote === i ? 'outline outline-2 outline-indigo-600' : ''}`}
           >
-            <div className="font-mono text-xl font-bold leading-tight">{display}</div>
+            {n.uncertain && !corrected && (
+              <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-orange-500 text-[10px] font-bold text-white">?</span>
+            )}
+            {corrected && (
+              <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-600 text-[10px] font-bold text-white">✓</span>
+            )}
+            <div className={`font-mono text-xl font-bold leading-tight ${n.uncertain && !corrected ? 'opacity-70' : ''}`}>{display}</div>
             <div className="text-[10px] leading-tight opacity-80">{subtitle(n, instrument)}</div>
             <div className="text-[10px] leading-tight opacity-60">{n.french}</div>
-          </div>
+            {!corrected && (
+              <div className="mx-auto mt-0.5 h-1 w-full overflow-hidden rounded bg-black/10" aria-label={`Confiance ${Math.round(conf * 100)} %`}>
+                <div className={`h-full ${conf >= 0.5 ? 'bg-current opacity-50' : 'bg-orange-500'}`} style={{ width: `${Math.max(8, conf * 100)}%` }} />
+              </div>
+            )}
+          </button>
         )
       })}
     </div>
   )
 }
 
-export function TabView({ tab, activeIndex }: { tab: Tablature; activeIndex: number }) {
+interface Props {
+  tab: Tablature
+  activeIndex: number
+  selected: { ev: number; note: number } | null
+  onSelect: (ev: number, note: number) => void
+}
+
+export function TabView({ tab, activeIndex, selected, onSelect }: Props) {
   const measures = new Map<number, { ev: TabEvent; idx: number }[]>()
   tab.events.forEach((ev, idx) => {
     const list = measures.get(ev.measure) ?? []
@@ -62,7 +94,8 @@ export function TabView({ tab, activeIndex }: { tab: Tablature; activeIndex: num
           <div className="mb-1 px-1 text-xs font-medium text-slate-400">Mesure {m}</div>
           <div className="flex flex-wrap items-start gap-1">
             {(measures.get(m) ?? []).map(({ ev, idx }) => (
-              <EventCard key={idx} ev={ev} instrument={tab.instrument} active={idx === activeIndex} />
+              <EventCard key={idx} ev={ev} instrument={tab.instrument} active={idx === activeIndex}
+                selectedNote={selected?.ev === idx ? selected.note : null} onSelect={(note) => onSelect(idx, note)} />
             ))}
             {!measures.get(m) && <div className="px-2 py-4 text-sm text-slate-400">silence</div>}
           </div>

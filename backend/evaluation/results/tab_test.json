@@ -1,0 +1,222 @@
+{
+ "harmonica|debutant|v1": {
+  "precision_notes_tab": 0.843,
+  "rappel_melodie": 0.479,
+  "f1": 0.611,
+  "jouables": 0.921,
+  "incertaines": 0.0,
+  "precision_si_incertaine": 0.0,
+  "precision_si_sure": 0.843,
+  "conversion_coherente": 1.0,
+  "notes": 445
+ },
+ "harmonica|debutant|v2": {
+  "precision_notes_tab": 0.881,
+  "rappel_melodie": 0.484,
+  "f1": 0.625,
+  "jouables": 0.921,
+  "incertaines": 0.01,
+  "precision_si_incertaine": 0.75,
+  "precision_si_sure": 0.882,
+  "conversion_coherente": 1.0,
+  "notes": 420
+ },
+ "harmonica|debutant|reference->tab": {
+  "precision_notes_tab": 1.0,
+  "rappel_melodie": 0.542,
+  "f1": 0.703,
+  "jouables": 0.936,
+  "incertaines": 0.0,
+  "precision_si_incertaine": 0.0,
+  "precision_si_sure": 1.0,
+  "conversion_coherente": 1.0,
+  "notes": 421
+ },
+ "harmonica|intermediaire|v1": {
+  "precision_notes_tab": 0.801,
+  "rappel_melodie": 0.577,
+  "f1": 0.671,
+  "jouables": 0.949,
+  "incertaines": 0.0,
+  "precision_si_incertaine": 0.0,
+  "precision_si_sure": 0.801,
+  "conversion_coherente": 1.0,
+  "notes": 568
+ },
+ "harmonica|intermediaire|v2": {
+  "precision_notes_tab": 0.828,
+  "rappel_melodie": 0.569,
+  "f1": 0.674,
+  "jouables": 0.957,
+  "incertaines": 0.136,
+  "precision_si_incertaine": 0.605,
+  "precision_si_sure": 0.863,
+  "conversion_coherente": 1.0,
+  "notes": 558
+ },
+ "harmonica|intermediaire|reference->tab": {
+  "precision_notes_tab": 0.996,
+  "rappel_melodie": 0.652,
+  "f1": 0.788,
+  "jouables": 0.952,
+  "incertaines": 0.0,
+  "precision_si_incertaine": 0.0,
+  "precision_si_sure": 0.996,
+  "conversion_coherente": 1.0,
+  "notes": 519
+ },
+ "harmonica|avance|v1": {
+  "precision_notes_tab": 0.801,
+  "rappel_melodie": 0.577,
+  "f1": 0.671,
+  "jouables": 0.982,
+  "incertaines": 0.0,
+  "precision_si_incertaine": 0.0,
+  "precision_si_sure": 0.801,
+  "conversion_coherente": 1.0,
+  "notes": 568
+ },
+ "harmonica|avance|v2": {
+  "precision_notes_tab": 0.805,
+  "rappel_melodie": 0.645,
+  "f1": 0.716,
+  "jouables": 0.996,
+  "incertaines": 0.268,
+  "precision_si_incertaine": 0.644,
+  "precision_si_sure": 0.864,
+  "conversion_coherente": 1.0,
+  "notes": 714
+ },
+ "harmonica|avance|reference->tab": {
+  "precision_notes_tab": 0.997,
+  "rappel_melodie": 0.842,
+  "f1": 0.913,
+  "jouables": 0.996,
+  "incertaines": 0.0,
+  "precision_si_incertaine": 0.0,
+  "precision_si_sure": 0.997,
+  "conversion_coherente": 1.0,
+  "notes": 783
+ },
+ "harmonica|expert|v1": {
+  "precision_notes_tab": 0.793,
+  "rappel_melodie": 0.587,
+  "f1": 0.675,
+  "jouables": 0.988,
+  "incertaines": 0.0,
+  "precision_si_incertaine": 0.0,
+  "precision_si_sure": 0.793,
+  "conversion_coherente": 1.0,
+  "notes": 593
+ },
+ "harmonica|expert|v2": {
+  "precision_notes_tab": 0.775,
+  "rappel_melodie": 0.698,
+  "f1": 0.734,
+  "jouables": 1.0,
+  "incertaines": 0.309,
+  "precision_si_incertaine": 0.593,
+  "precision_si_sure": 0.856,
+  "conversion_coherente": 1.0,
+  "notes": 796
+ },
+ "harmonica|expert|reference->tab": {
+  "precision_notes_tab": 1.0,
+  "rappel_melodie": 0.932,
+  "f1": 0.965,
+  "jouables": 1.0,
+  "incertaines": 0.0,
+  "precision_si_incertaine": 0.0,
+  "precision_si_sure": 1.0,
+  "conversion_coherente": 1.0,
+  "notes": 840
+ },
+ "harmonica_mix|debutant|v1": {
+  "precision_notes_tab": 0.503,
+  "rappel_melodie": 0.379,
+  "f1": 0.432,
+  "jouables": 0.648,
+  "incertaines": 0.0,
+  "precision_si_incertaine": 0.0,
+  "precision_si_sure": 0.503,
+  "conversion_coherente": 1.0,
+  "notes": 580
+ },
+ "harmonica_mix|debutant|v2": {
+  "precision_notes_tab": 0.843,
+  "rappel_melodie": 0.465,
+  "f1": 0.599,
+  "jouables": 0.908,
+  "incertaines": 0.0,
+  "precision_si_incertaine": 0.0,
+  "precision_si_sure": 0.843,
+  "conversion_coherente": 1.0,
+  "notes": 413
+ },
+ "harmonica_mix|intermediaire|v1": {
+  "precision_notes_tab": 0.48,
+  "rappel_melodie": 0.492,
+  "f1": 0.486,
+  "jouables": 0.711,
+  "incertaines": 0.0,
+  "precision_si_incertaine": 0.0,
+  "precision_si_sure": 0.48,
+  "conversion_coherente": 1.0,
+  "notes": 810
+ },
+ "harmonica_mix|intermediaire|v2": {
+  "precision_notes_tab": 0.781,
+  "rappel_melodie": 0.55,
+  "f1": 0.645,
+  "jouables": 0.951,
+  "incertaines": 0.137,
+  "precision_si_incertaine": 0.553,
+  "precision_si_sure": 0.817,
+  "conversion_coherente": 1.0,
+  "notes": 556
+ },
+ "harmonica_mix|avance|v1": {
+  "precision_notes_tab": 0.48,
+  "rappel_melodie": 0.492,
+  "f1": 0.486,
+  "jouables": 0.804,
+  "incertaines": 0.0,
+  "precision_si_incertaine": 0.0,
+  "precision_si_sure": 0.48,
+  "conversion_coherente": 1.0,
+  "notes": 810
+ },
+ "harmonica_mix|avance|v2": {
+  "precision_notes_tab": 0.746,
+  "rappel_melodie": 0.621,
+  "f1": 0.678,
+  "jouables": 0.994,
+  "incertaines": 0.308,
+  "precision_si_incertaine": 0.557,
+  "precision_si_sure": 0.831,
+  "conversion_coherente": 1.0,
+  "notes": 717
+ },
+ "harmonica_mix|expert|v1": {
+  "precision_notes_tab": 0.462,
+  "rappel_melodie": 0.535,
+  "f1": 0.496,
+  "jouables": 0.842,
+  "incertaines": 0.0,
+  "precision_si_incertaine": 0.0,
+  "precision_si_sure": 0.462,
+  "conversion_coherente": 1.0,
+  "notes": 919
+ },
+ "harmonica_mix|expert|v2": {
+  "precision_notes_tab": 0.718,
+  "rappel_melodie": 0.664,
+  "f1": 0.69,
+  "jouables": 1.0,
+  "incertaines": 0.36,
+  "precision_si_incertaine": 0.543,
+  "precision_si_sure": 0.817,
+  "conversion_coherente": 1.0,
+  "notes": 809
+ }
+}

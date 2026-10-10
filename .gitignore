@@ -9,3 +9,4 @@ frontend/dist/
 # Divers
 .DS_Store
 *.log
+backend/evaluation/data

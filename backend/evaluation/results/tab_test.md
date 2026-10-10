@@ -1,0 +1,22 @@
+| jeu | niveau | moteur | precision_notes_tab | rappel_melodie | f1 | jouables | incertaines | precision_si_incertaine | precision_si_sure | conversion_coherente | notes |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| harmonica | debutant | v1 | 0.843 | 0.479 | 0.611 | 0.921 | 0.0 | 0.0 | 0.843 | 1.0 | 445 |
+| harmonica | debutant | v2 | 0.881 | 0.484 | 0.625 | 0.921 | 0.01 | 0.75 | 0.882 | 1.0 | 420 |
+| harmonica | debutant | reference->tab | 1.0 | 0.542 | 0.703 | 0.936 | 0.0 | 0.0 | 1.0 | 1.0 | 421 |
+| harmonica | intermediaire | v1 | 0.801 | 0.577 | 0.671 | 0.949 | 0.0 | 0.0 | 0.801 | 1.0 | 568 |
+| harmonica | intermediaire | v2 | 0.828 | 0.569 | 0.674 | 0.957 | 0.136 | 0.605 | 0.863 | 1.0 | 558 |
+| harmonica | intermediaire | reference->tab | 0.996 | 0.652 | 0.788 | 0.952 | 0.0 | 0.0 | 0.996 | 1.0 | 519 |
+| harmonica | avance | v1 | 0.801 | 0.577 | 0.671 | 0.982 | 0.0 | 0.0 | 0.801 | 1.0 | 568 |
+| harmonica | avance | v2 | 0.805 | 0.645 | 0.716 | 0.996 | 0.268 | 0.644 | 0.864 | 1.0 | 714 |
+| harmonica | avance | reference->tab | 0.997 | 0.842 | 0.913 | 0.996 | 0.0 | 0.0 | 0.997 | 1.0 | 783 |
+| harmonica | expert | v1 | 0.793 | 0.587 | 0.675 | 0.988 | 0.0 | 0.0 | 0.793 | 1.0 | 593 |
+| harmonica | expert | v2 | 0.775 | 0.698 | 0.734 | 1.0 | 0.309 | 0.593 | 0.856 | 1.0 | 796 |
+| harmonica | expert | reference->tab | 1.0 | 0.932 | 0.965 | 1.0 | 0.0 | 0.0 | 1.0 | 1.0 | 840 |
+| harmonica_mix | debutant | v1 | 0.503 | 0.379 | 0.432 | 0.648 | 0.0 | 0.0 | 0.503 | 1.0 | 580 |
+| harmonica_mix | debutant | v2 | 0.843 | 0.465 | 0.599 | 0.908 | 0.0 | 0.0 | 0.843 | 1.0 | 413 |
+| harmonica_mix | intermediaire | v1 | 0.48 | 0.492 | 0.486 | 0.711 | 0.0 | 0.0 | 0.48 | 1.0 | 810 |
+| harmonica_mix | intermediaire | v2 | 0.781 | 0.55 | 0.645 | 0.951 | 0.137 | 0.553 | 0.817 | 1.0 | 556 |
+| harmonica_mix | avance | v1 | 0.48 | 0.492 | 0.486 | 0.804 | 0.0 | 0.0 | 0.48 | 1.0 | 810 |
+| harmonica_mix | avance | v2 | 0.746 | 0.621 | 0.678 | 0.994 | 0.308 | 0.557 | 0.831 | 1.0 | 717 |
+| harmonica_mix | expert | v1 | 0.462 | 0.535 | 0.496 | 0.842 | 0.0 | 0.0 | 0.462 | 1.0 | 919 |
+| harmonica_mix | expert | v2 | 0.718 | 0.664 | 0.69 | 1.0 | 0.36 | 0.543 | 0.817 | 1.0 | 809 |

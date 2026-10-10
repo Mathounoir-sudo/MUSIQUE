@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   downloadPdf, getHealth, makeTablature, transcribe,
-  type Health, type Level, type Tablature, type TabParams, type Transcription,
+  type Corrections, type Health, type Level, type Tablature, type TabParams, type Transcription,
 } from './api'
+import { NoteEditor } from './components/NoteEditor'
 import { TabView } from './components/TabView'
 import { TabSynth } from './synth'
 
@@ -46,6 +47,9 @@ export default function App() {
   const [level, setLevel] = useState<Level>('debutant')
   const [harpKey, setHarpKey] = useState('auto')
   const [tempo, setTempo] = useState<number | undefined>(undefined)
+  const [recordingIsInstrument, setRecordingIsInstrument] = useState(true)
+  const [corrections, setCorrections] = useState<Corrections>({})
+  const [selected, setSelected] = useState<{ ev: number; note: number } | null>(null)
 
   const [transcription, setTranscription] = useState<Transcription | null>(null)
   const [transcribedFrom, setTranscribedFrom] = useState('')
@@ -67,8 +71,12 @@ export default function App() {
   const params: TabParams = {
     instrument,
     level,
-    options: instrument === 'harmonica_diatonique' ? { harp_key: harpKey } : {},
+    options: {
+      recording_is_instrument: recordingIsInstrument,
+      ...(instrument === 'harmonica_diatonique' ? { harp_key: harpKey } : {}),
+    },
     tempo,
+    corrections,
   }
   const paramsKey = JSON.stringify(params)
   const sourceKey = source === 'file' ? `file:${file?.name}:${file?.size}:${file?.lastModified}` : `yt:${youtubeUrl.trim()}`
@@ -123,13 +131,15 @@ export default function App() {
         setTranscription(t)
         setTranscribedFrom(sourceKey)
         setTempo(undefined)
+        setCorrections({})
+        setSelected(null)
       } catch (e) {
         setBusy('')
         setError((e as Error).message)
         return
       }
     }
-    await refreshTab(t, { ...params, tempo: t === transcription ? tempo : undefined })
+    await refreshTab(t, t === transcription ? params : { ...params, tempo: undefined, corrections: {} })
   }
 
   // Changer d'instrument, de niveau ou de tonalité recalcule la tablature
@@ -169,6 +179,21 @@ export default function App() {
     audioRef.current?.pause()
     setSynthPlaying(true)
     synth.current.play(tab.events, tab.tempo, speed, setActiveIndex, () => setSynthPlaying(false))
+  }
+
+  const playPassage = (start: number, end: number) => {
+    const a = audioRef.current
+    if (!a) return
+    stopAll()
+    a.currentTime = Math.max(0, start - 0.3)
+    a.playbackRate = speed
+    void a.play()
+    const stopAt = end + 0.3
+    const check = () => {
+      if (a.currentTime >= stopAt || a.paused) a.pause()
+      else requestAnimationFrame(check)
+    }
+    requestAnimationFrame(check)
   }
 
   const exportPdf = async () => {
@@ -287,12 +312,22 @@ export default function App() {
                 <select value={harpKey} onChange={(e) => setHarpKey(e.target.value)}
                   className="rounded-lg border border-slate-300 bg-white px-2 py-1">
                   {HARP_KEYS.map((k) => (
-                    <option key={k} value={k}>{k === 'auto' ? 'Automatique (la plus adaptée)' : k}</option>
+                    <option key={k} value={k}>{k === 'auto' ? 'Automatique (harmonica recommandé)' : k}</option>
                   ))}
                 </select>
                 <span className="text-xs text-slate-400">gravée sur le côté de l'harmonica (C = Do)</span>
               </label>
             )}
+            <label className="flex items-start gap-2 text-sm text-slate-600">
+              <input type="checkbox" checked={recordingIsInstrument} onChange={(e) => setRecordingIsInstrument(e.target.checked)} className="mt-1" />
+              <span>
+                L'enregistrement est joué avec cet instrument
+                <span className="block text-xs text-slate-400">
+                  Les notes impossibles sur cet instrument (hors tessiture) sont alors écartées comme erreurs de détection.
+                  Décochez pour transcrire un autre instrument ou une voix.
+                </span>
+              </span>
+            </label>
             <p className="text-xs text-slate-400">D'autres instruments pourront être ajoutés (ukulélé, flûte, basse…).</p>
           </Section>
 
@@ -340,7 +375,7 @@ export default function App() {
                 <p className="text-sm text-slate-500">
                   {String(s.instrument)}
                   {s.harp_key ? ` en ${s.harp_key}` : ''} · {LEVELS.find((l) => l.id === tab.level)?.name} · tempo {tab.tempo} BPM ·{' '}
-                  {s.playable}/{s.total} notes jouables
+                  {s.playable}/{s.total} notes jouables · {Number(s.uncertain ?? 0)} incertaine(s)
                 </p>
               </div>
               <button type="button" onClick={exportPdf} disabled={busy !== ''}
@@ -409,11 +444,41 @@ export default function App() {
 
             <div className={busy === 'tab' ? 'opacity-50 transition' : 'transition'}>
               {view === 'cards' ? (
-                <TabView tab={tab} activeIndex={activeIndex} />
+                <TabView tab={tab} activeIndex={activeIndex}
+                  selected={selected} onSelect={(ev, note) => setSelected({ ev, note })} />
               ) : (
                 <pre className="overflow-x-auto rounded-2xl bg-slate-900 p-4 text-sm leading-relaxed text-slate-100">{tab.text.join('\n')}</pre>
               )}
             </div>
+
+            {selected && tab.events[selected.ev]?.notes[selected.note] && (
+              <NoteEditor
+                event={tab.events[selected.ev]}
+                note={tab.events[selected.ev].notes[selected.note]}
+                instrument={tab.instrument}
+                octaveShift={Number(tab.summary.octave_shift ?? 0)}
+                onPlay={playPassage}
+                onClose={() => setSelected(null)}
+                onCorrect={(id, pitch) => {
+                  setCorrections((c) => ({ ...c, [id]: pitch }))
+                  setSelected(null)
+                }}
+                onReset={(id) => {
+                  setCorrections((c) => {
+                    const next = { ...c }
+                    delete next[id]
+                    return next
+                  })
+                  setSelected(null)
+                }}
+              />
+            )}
+            {Object.keys(corrections).length > 0 && (
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">
+                <span>{Object.keys(corrections).length} correction(s) appliquée(s) par vous (cadre vert dans la tablature).</span>
+                <button type="button" className="underline" onClick={() => setCorrections({})}>Annuler toutes les corrections</button>
+              </div>
+            )}
 
             <div>
               <h3 className="mb-2 text-sm font-semibold text-slate-600">Comment lire cette tablature</h3>

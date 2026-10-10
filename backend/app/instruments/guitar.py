@@ -48,6 +48,8 @@ class Guitar(Instrument):
     name = "Guitare"
     description = "Accordage standard. Tablature 6 lignes : ligne du haut = corde de Mi aigu, chiffre = case."
     polyphonic = True
+    max_polyphony = 6
+    range = (40, 88)
     options: list[dict] = []
 
     def tablature(self, events: list[Event], level: str, options: dict) -> TabResult:

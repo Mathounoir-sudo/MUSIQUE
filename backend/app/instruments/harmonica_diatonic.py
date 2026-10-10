@@ -17,6 +17,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from ..music import Event, apply_shift, midi_to_french, midi_to_name
+from itertools import product
+
 from .base import Instrument, TabNote, TabResult, base_event, measures_text, viterbi
 
 C_BLOW = [60, 64, 67, 72, 76, 79, 84, 88, 91, 96]
@@ -145,15 +147,41 @@ def choose_key_and_shift(pitches: list[int], max_tier: int, key: str | None,
     return best
 
 
+def chord_positions(pitches: list[int], table: dict[int, list[HarpPosition]]) -> list[tuple[HarpPosition, ...]]:
+    """Accords jouables : trous adjacents, même sens de souffle, notes naturelles.
+
+    C'est la façon réelle de jouer plusieurs notes à l'harmonica (bouche sur
+    2-3 trous voisins). Les accords avec bends ou trous non adjacents
+    (octaves en blocage de langue) ne sont pas proposés.
+    """
+    options = [[p for p in table.get(x, []) if p.tier == 0] for x in pitches]
+    out = []
+    for combo in product(*options):
+        holes = sorted(p.hole for p in combo)
+        if len({p.action for p in combo}) == 1 and len(set(holes)) == len(holes) and \
+                holes[-1] - holes[0] == len(holes) - 1:
+            out.append(tuple(sorted(combo, key=lambda p: p.hole)))
+    return out
+
+
 class DiatonicHarmonica(Instrument):
     id = "harmonica_diatonique"
     name = "Harmonica diatonique"
     description = "10 trous, accordage Richter. Chiffre = trou ; « - » = aspirer ; « ' » = bend."
-    polyphonic = False
+    polyphonic = True
+    max_polyphony = 3  # 3 trous adjacents au plus (niveaux avancé et expert)
     options = [
         {"id": "harp_key", "label": "Tonalité de l'harmonica",
          "choices": ["auto"] + KEY_PREFERENCE, "default": "auto"},
     ]
+
+    def pitch_range(self, options: dict):
+        if not options.get("recording_is_instrument"):
+            return (None, None)
+        key = options.get("harp_key")
+        keys = [key] if key in KEY_OFFSETS else list(KEY_OFFSETS)
+        ps = [p.pitch for k in keys for p in harp_layout(k)]
+        return (min(ps), max(ps))
 
     def tablature(self, events: list[Event], level: str, options: dict) -> TabResult:
         max_tier = LEVEL_MAX_TIER[level]
@@ -163,65 +191,95 @@ class DiatonicHarmonica(Instrument):
             raise ValueError(f"Tonalité d'harmonica inconnue : {key_opt}")
         allow_shift = options.get("allow_octave_shift", True)
 
-        pitches = [e.pitches[0] for e in events]
-        key, shift = choose_key_and_shift(pitches, max_tier, key_opt, allow_shift)
+        # La tonalité est choisie sur la ligne mélodique (note la plus haute).
+        melody = [max(e.pitches) for e in events]
+        key, shift = choose_key_and_shift(melody, max_tier, key_opt, allow_shift)
         events = apply_shift(events, shift)
         table = positions_by_pitch(key)
 
-        # Choix du trou par programmation dynamique : techniques simples et
-        # déplacements courts sont privilégiés sur l'ensemble du morceau.
-        cands: list[list[HarpPosition | None]] = [list(table.get(e.pitches[0], [])) or [None] for e in events]
+        # Candidats par événement : un tuple de positions (une par note jouée).
+        cands: list[list[tuple]] = []
+        dropped: list[list[int]] = []
+        for e in events:
+            top = max(e.pitches)
+            if len(e.pitches) > 1:
+                chords = chord_positions(sorted(e.pitches), table)
+                if chords:
+                    cands.append(chords)
+                    dropped.append([])
+                    continue
+            cands.append([(p,) for p in table.get(top, [])] or [(None,)])
+            dropped.append([p for p in e.pitches if p != top])
 
-        def unary(p: HarpPosition | None) -> float:
-            if p is None:
+        def unary(c: tuple) -> float:
+            if c[0] is None:
                 return 0.0
-            return p.tier * 1.0 + (25.0 if p.tier > max_tier else 0.0)
+            return sum(p.tier * 1.0 + (25.0 if p.tier > max_tier else 0.0) for p in c)
 
-        def transition(a: HarpPosition | None, b: HarpPosition | None) -> float:
-            if a is None or b is None:
+        def transition(a: tuple, b: tuple) -> float:
+            if a[0] is None or b[0] is None:
                 return 0.0
-            return 0.35 * abs(a.hole - b.hole)
+            return 0.35 * abs(a[-1].hole - b[-1].hole)
 
         path = viterbi(cands, unary, transition)
 
         out_events, warnings = [], []
-        stats = {"total": 0, "playable": 0, "needs_higher_level": 0, "out_of_range": 0, "bends": 0, "overblows": 0}
-        for e, pos in zip(events, path):
-            pitch = e.pitches[0]
-            stats["total"] += 1
-            if pos is None:
-                stats["out_of_range"] += 1
-                note = TabNote(pitch, "?", f"{midi_to_french(pitch)} : hors tessiture",
-                               playable=False,
-                               issue=f"{midi_to_name(pitch)} n'existe pas sur un harmonica en {key}.")
-            else:
+        stats = {"total": 0, "playable": 0, "needs_higher_level": 0, "out_of_range": 0, "bends": 0,
+                 "overblows": 0, "chords": 0, "chord_notes_dropped": 0}
+        for e, combo, drop in zip(events, path, dropped):
+            notes: list[TabNote] = []
+            stats["chord_notes_dropped"] += len(drop)
+            if len(combo) > 1:
+                stats["chords"] += 1
+            for pos in combo:
+                stats["total"] += 1
+                if pos is None:
+                    pitch = max(e.pitches)
+                    stats["out_of_range"] += 1
+                    notes.append(TabNote(pitch, "?", f"{midi_to_french(pitch)} : hors tessiture", playable=False,
+                                         issue=f"{midi_to_name(pitch)} n'existe pas sur un harmonica en {key}."))
+                    continue
                 ok = pos.tier <= max_tier
                 issue = None
                 if not ok:
                     stats["needs_higher_level"] += 1
-                    issue = (f"Nécessite un {TIER_NAMES[pos.tier]} (niveau {TIER_LEVEL[pos.tier]}).")
+                    issue = f"Nécessite un {TIER_NAMES[pos.tier]} (niveau {TIER_LEVEL[pos.tier]})."
                 else:
                     stats["playable"] += 1
                 if pos.over:
                     stats["overblows"] += 1
                 elif pos.bend:
                     stats["bends"] += 1
-                note = TabNote(pitch, pos.label, pos.detail, playable=ok, issue=issue,
-                               extra={"hole": pos.hole, "action": pos.action, "bend": pos.bend,
-                                      "overblow": pos.over, "technique": TIER_NAMES[pos.tier]})
-            out_events.append(base_event(e, [note]))
+                notes.append(TabNote(pos.pitch, pos.label, pos.detail, playable=ok, issue=issue,
+                                     extra={"hole": pos.hole, "action": pos.action, "bend": pos.bend,
+                                            "overblow": pos.over, "technique": TIER_NAMES[pos.tier]}))
+            ev = base_event(e, sorted(notes, key=lambda n: -n.pitch))
+            if drop:
+                ev["dropped"] = [midi_to_name(p) for p in drop]
+            out_events.append(ev)
 
         if shift:
             direction = "vers l'aigu" if shift > 0 else "vers le grave"
-            warnings.append(f"Mélodie transposée de {abs(shift) // 12} octave(s) {direction} pour tenir sur l'harmonica.")
+            warnings.append(f"Mélodie transposée de {abs(shift) // 12} octave(s) {direction} pour tenir sur "
+                            "l'harmonica (les notes ne sont plus à la hauteur de l'enregistrement).")
+        if key_opt is None:
+            warnings.append(f"Harmonica en {key} recommandé : c'est celui qui joue ces notes avec le moins de "
+                            "techniques difficiles. Choisissez votre propre harmonica dans la liste si besoin.")
         if stats["out_of_range"]:
             warnings.append(f"{stats['out_of_range']} note(s) hors tessiture, marquées « ? ».")
         if stats["needs_higher_level"]:
             warnings.append(f"{stats['needs_higher_level']} note(s) demandent une technique au-delà du niveau choisi "
                             "(affichées en orange).")
+        if stats["chord_notes_dropped"]:
+            warnings.append(f"{stats['chord_notes_dropped']} note(s) d'accord retirée(s) : impossibles à jouer "
+                            "ensemble sur des trous voisins ; la note la plus aiguë est gardée.")
+
+        def cell(ev):
+            labels = [n["label"] for n in ev["notes"]]
+            return labels[0] if len(labels) == 1 else "(" + " ".join(reversed(labels)) + ")"
 
         text = [f"Harmonica diatonique en {key} — chiffre = souffler, -chiffre = aspirer, ' = bend d'½ ton"]
-        text += measures_text(out_events, lambda ev: ev["notes"][0]["label"])
+        text += measures_text(out_events, cell, width=7)
         legend = [
             {"symbol": "4", "meaning": "Souffler dans le trou 4"},
             {"symbol": "-4", "meaning": "Aspirer dans le trou 4"},
@@ -229,6 +287,7 @@ class DiatonicHarmonica(Instrument):
             {"symbol": "-3''", "meaning": "Aspirer trou 3 en bend d'un ton"},
             {"symbol": "8'", "meaning": "Souffler trou 8 en bend (trous 7 à 10)"},
             {"symbol": "4o / -7o", "meaning": "Overblow (souffle) / overdraw (aspiré) — expert"},
+            {"symbol": "(4 5)", "meaning": "Accord : trous voisins joués ensemble (avancé/expert)"},
             {"symbol": "?", "meaning": "Note absente de l'harmonica choisi"},
         ]
         summary = {

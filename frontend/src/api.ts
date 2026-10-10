@@ -3,12 +3,18 @@
 export type Level = 'debutant' | 'intermediaire' | 'avance' | 'expert'
 
 export interface DetectedNote {
+  id: number
   start: number
   end: number
   pitch: number
   velocity: number
+  cents: number
+  confidence: number
   name: string
 }
+
+/** Corrections de l'utilisateur : id de note → nouvelle hauteur MIDI, ou null = note supprimée. */
+export type Corrections = Record<number, number | null>
 
 export interface Transcription {
   id: string
@@ -36,6 +42,13 @@ export interface TabNote {
   string?: number
   fret?: number
   hand?: 'MD' | 'MG'
+  confidence?: number
+  cents?: number
+  note_id?: number
+  corrected_from?: number | null
+  uncertain?: boolean
+  uncertain_reasons?: string[]
+  alternatives?: number[]
 }
 
 export interface TabEvent {
@@ -45,6 +58,7 @@ export interface TabEvent {
   beats: number
   measure: number
   notes: TabNote[]
+  dropped?: string[]
 }
 
 export interface Tablature {
@@ -101,13 +115,19 @@ export function transcribe(input: { file?: File; youtubeUrl?: string; rightsConf
 export interface TabParams {
   instrument: string
   level: Level
-  options: Record<string, string>
+  options: Record<string, string | boolean>
   tempo?: number
+  corrections?: Corrections
 }
 
 function tabBody(t: Transcription, p: TabParams) {
   return JSON.stringify({
-    notes: t.notes.map(({ start, end, pitch, velocity }) => ({ start, end, pitch, velocity })),
+    notes: t.notes.flatMap(({ id, start, end, pitch, velocity, cents }) => {
+      const c = p.corrections?.[id]
+      if (c === null) return [] // supprimée par l'utilisateur
+      if (c !== undefined && c !== pitch) return [{ id, start, end, pitch: c, velocity, cents: 0, original_pitch: pitch }]
+      return [{ id, start, end, pitch, velocity, cents }]
+    }),
     tempo: p.tempo ?? t.tempo,
     instrument: p.instrument,
     level: p.level,

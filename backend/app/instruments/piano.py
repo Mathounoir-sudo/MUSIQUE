@@ -13,6 +13,8 @@ class Piano(Instrument):
     name = "Piano"
     description = "Nom des notes avec leur octave (Do4 = do central). MD = main droite, MG = main gauche."
     polyphonic = True
+    max_polyphony = 6
+    range = (21, 108)
     options: list[dict] = []
 
     def tablature(self, events: list[Event], level: str, options: dict) -> TabResult:

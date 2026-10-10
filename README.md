@@ -12,12 +12,14 @@ Parcours : importer → choisir l'instrument et le niveau → **Générer ma tab
 audio (MP3/WAV/YouTube)
    │  backend/app/audio_input.py     validation, décodage en WAV mono 22 kHz, yt-dlp
    ▼
-transcription (notes MIDI)
-   │  backend/app/transcription.py   modèle Basic Pitch (Spotify), version ONNX + tempo (librosa)
+transcription (notes + confiance, cents, provenance)
+   │  backend/app/transcription.py   modèle Basic Pitch (Spotify), version ONNX, latence corrigée + tempo
+   ▼
+nettoyage des erreurs de détection
+   │  backend/app/note_cleanup.py    tessiture, fragments d'attaque, harmoniques fantômes, confiance
    ▼
 préparation selon le niveau
-   │  backend/app/music.py           suppression des harmoniques, extraction de mélodie,
-   │                                 quantification rythmique, filtrage par niveau
+   │  backend/app/music.py           simplification par niveau, mélodie ou accords, quantification
    ▼
 conversion en tablature
       backend/app/instruments/*.py   un module par instrument (doigté optimisé par programmation dynamique)
@@ -39,6 +41,11 @@ conversion en tablature
 * Techniques autorisées par niveau : débutant = notes naturelles ; intermédiaire = + bends d'½ ton ;
   avancé = tous les bends ; expert = + overblows/overdraws.
 * Le trou est choisi pour limiter les déplacements (ex. G4 = `-2` ou `3` selon le contexte).
+* Aux niveaux avancé et expert, les **accords** sont gardés s'ils se jouent vraiment : trous voisins,
+  même sens de souffle, sans bend — noté `(4 5 6)`. Sinon la note la plus aiguë est gardée et le
+  retrait est signalé.
+* En mode **Automatique**, l'harmonica proposé est une *recommandation* (le moins de techniques
+  difficiles pour les mêmes hauteurs). Choisissez votre harmonica dans la liste pour l'imposer.
 
 ### Autres instruments
 * **Harmonica chromatique** 12 trous en Do : `5`, `-5`, `5<` (bouton enfoncé).
@@ -53,6 +60,14 @@ conversion en tablature
   surlignage de la note en cours.
 * « Écouter la tablature » : synthèse des notes de la tablature au tempo choisi.
 * Tempo modifiable si l'estimation automatique est fausse.
+* **Confiance** affichée pour chaque note (jauge) ; les notes **incertaines** (son faible ou très court,
+  hauteur entre deux demi-tons) sont marquées « ? » en pointillés.
+* Cliquer sur une note : détail (confiance, écart en cents, notes concurrentes), **écoute du passage
+  isolé** dans l'original, **correction** de la hauteur ou suppression d'une note parasite ; la note
+  corrigée apparaît en vert avec « détectée X → corrigée Y », et la tablature est recalculée sans
+  réanalyser l'audio (comme pour les changements d'instrument, de tonalité ou de niveau).
+* Option « L'enregistrement est joué avec cet instrument » : écarte les notes hors tessiture comme
+  erreurs de détection (à décocher pour transcrire une voix ou un autre instrument).
 * Export PDF (tablature texte + légende + avertissements).
 
 ## Installation sous Windows (PowerShell)
@@ -115,6 +130,21 @@ npm run dev
 ```
 Ouvrir http://localhost:5173 (les appels `/api` sont redirigés vers le port 8000).
 
+## Justesse des notes — mesurée sur de vrais enregistrements
+
+Le moteur est évalué sur **43 enregistrements réels d'harmonica diatonique annotés à la main**
+(ICASSP 2019), seuls et avec un accompagnement réel, plus de la voix et du saxophone réels. Résultats
+sur la partie *test* (jamais utilisée pour le réglage), F1 des notes à ±50 ms :
+
+| | v1 | v2 |
+|---|---|---|
+| Harmonica solo | 0,435 | **0,587** (erreurs d'octave 69 → 12) |
+| Harmonica + accompagnement | 0,313 | **0,539** |
+| Justesse des notes de la tablature, débutant (solo / accompagné) | 0,84 / 0,50 | **0,88 / 0,84** |
+
+Protocole complet, causes des erreurs, méthodes comparées et limites :
+[`backend/evaluation/README.md`](backend/evaluation/README.md).
+
 ## Tester
 
 ```powershell
@@ -139,6 +169,14 @@ Les tests couvrent :
 
 Vous pouvez aussi importer `tests\fixtures\au_clair_de_la_lune.wav` dans l'interface.
 
+Tests sur enregistrements réels (ignorés tant que les données ne sont pas téléchargées) :
+```powershell
+python -m evaluation.fetch_data      # ~2 Go via git, une seule fois
+python -m pytest -v                  # inclut tests\test_real_recordings.py
+python -m evaluation.run --split test
+python -m evaluation.tab_eval --split test
+```
+
 ## Limitations connues
 
 * **YouTube** : nécessite FFmpeg, et ne doit servir qu'à des vidéos dont vous avez les droits (case à
@@ -146,10 +184,10 @@ Vous pouvez aussi importer `tests\fixtures\au_clair_de_la_lune.wav` dans l'inter
   une mise à jour (`pip install -U yt-dlp`) ou un moteur JavaScript comme Deno
   (`winget install DenoLand.Deno`). En cas d'échec, un message invite à importer un fichier MP3/WAV,
   solution recommandée.
-* La transcription automatique est fiable sur une **mélodie claire** (instrument seul, voix seule). Sur un
-  mix complet (batterie, accompagnement, réverbération), le modèle détecte aussi l'accompagnement :
-  l'extraction de mélodie (voix la plus aiguë) peut alors se tromper. Aucune séparation de sources
-  (type Demucs) n'est intégrée.
+* La transcription reste **imparfaite** : sur l'harmonica réel, environ 6 notes sur 10 sont retrouvées
+  exactement (F1 0,59 ; 0,54 avec accompagnement). Les erreurs restantes sont surtout des notes à ½ ton
+  ou un ton (bends en cours) et des notes très courtes. Les notes douteuses sont signalées et
+  corrigibles ; vérifiez à l'oreille. Aucune séparation de sources (type Demucs) n'est intégrée.
 * Le **tempo** est estimé automatiquement et peut être faux (souvent ×1,5 ou ×2) : corrigez-le dans le
   champ « Tempo ». Il n'influence que le découpage en mesures, pas les notes.
 * Mesures en 4/4 uniquement ; pas de détection de tonalité du morceau ni de position d'harmonica

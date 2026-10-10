@@ -59,6 +59,8 @@ class ChromaticHarmonica(Instrument):
     name = "Harmonica chromatique"
     description = "12 trous en Do. Chiffre = trou ; « - » = aspirer ; « < » = bouton enfoncé."
     polyphonic = False
+    max_polyphony = 1
+    range = (60, 97)
     options: list[dict] = []
 
     def tablature(self, events: list[Event], level: str, options: dict) -> TabResult:

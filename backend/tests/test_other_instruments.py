@@ -1,6 +1,7 @@
 from app.instruments.guitar import TUNING, Guitar
 from app.instruments.piano import Piano
-from app.music import Event, Note, build_events, extract_melody, name_to_midi, remove_harmonic_ghosts
+from app.music import Event, Note, build_events, extract_melody, name_to_midi
+from app.note_cleanup import remove_ghosts
 
 
 def test_guitar_positions_are_correct():
@@ -33,9 +34,10 @@ def test_piano_hands():
 def test_harmonic_ghost_removed_but_real_octave_kept():
     fund = Note(0, 1, 60, 0.9)
     ghost = Note(0, 1, 72, 0.3)
-    assert remove_harmonic_ghosts([fund, ghost]) == [fund]
+    assert remove_ghosts([fund, ghost], 0.6) == [fund]
+    assert fund.alternatives == [72]  # la note concurrente est gardée en trace
     real = Note(0, 1, 72, 0.9)
-    assert len(remove_harmonic_ghosts([fund, real])) == 2
+    assert len(remove_ghosts([Note(0, 1, 60, 0.9), real], 0.6)) == 2
 
 
 def test_melody_extraction_keeps_top_voice():
@@ -45,12 +47,13 @@ def test_melody_extraction_keeps_top_voice():
 
 def test_quantization_by_level():
     notes = [Note(0.0, 0.48, 60, 0.8), Note(0.52, 0.98, 62, 0.8), Note(1.03, 1.2, 64, 0.8)]
-    ev = build_events(notes, 120, "debutant", False)
+    ev, _ = build_events(notes, 120, "debutant")
     assert [e.beat for e in ev] == [0.0, 1.0, 2.0]
-    # Une note très courte et faible disparaît en débutant, reste en expert.
+    # Une note très courte et faible disparaît en débutant, reste en expert (signalée incertaine).
     notes.append(Note(1.5, 1.55, 65, 0.2))
-    assert len(build_events(notes, 120, "debutant", False)) == 3
-    assert len(build_events(notes, 120, "expert", False)) == 4
+    assert len(build_events(notes, 120, "debutant")[0]) == 3
+    ev, _ = build_events(notes, 120, "expert")
+    assert len(ev) == 4 and ev[-1].confidences[0] < 0.5
 
 
 def test_guitar_ascii_rows_match_strings():

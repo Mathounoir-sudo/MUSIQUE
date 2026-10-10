@@ -13,7 +13,8 @@ from pydantic import BaseModel, Field
 from . import audio_input
 from .audio_input import InputError
 from .instruments import INSTRUMENTS
-from .music import LEVELS, Note, build_events, midi_to_name
+from .music import LEVELS, build_events, midi_to_name
+from .note_cleanup import DetectedNote
 from .pdf_export import render_pdf
 from .transcription import TranscriptionUnavailable, engine_status, transcribe
 
@@ -30,6 +31,10 @@ class NoteIn(BaseModel):
     end: float = Field(ge=0)
     pitch: int = Field(ge=0, le=127)
     velocity: float = Field(default=0.8, ge=0, le=1.5)
+    cents: float = Field(default=0.0, ge=-100, le=100)
+    id: int = -1
+    # Hauteur détectée à l'origine, si l'utilisateur a corrigé la note.
+    original_pitch: int | None = Field(default=None, ge=0, le=127)
 
 
 class TabRequest(BaseModel):
@@ -94,11 +99,7 @@ def transcribe_endpoint(
         "duration": result.duration,
         "tempo": result.tempo,
         "engine": result.engine,
-        "notes": [
-            {"start": round(n.start, 3), "end": round(n.end, 3), "pitch": n.pitch,
-             "velocity": round(n.velocity, 3), "name": midi_to_name(n.pitch)}
-            for n in result.notes
-        ],
+        "notes": [{**n.to_dict(), "id": i, "name": midi_to_name(n.pitch)} for i, n in enumerate(result.notes)],
     }
 
 
@@ -114,14 +115,25 @@ def _make_tab(req: TabRequest):
     inst = INSTRUMENTS.get(req.instrument)
     if inst is None:
         raise HTTPException(400, f"Instrument inconnu : {req.instrument}")
-    notes = [Note(n.start, n.end, n.pitch, n.velocity) for n in req.notes if n.end > n.start]
-    events = build_events(notes, req.tempo, req.level, inst.polyphonic)
+    notes = [DetectedNote(n.start, n.end, n.pitch, n.velocity, n.cents, id=n.id, original_pitch=n.original_pitch,
+                          source="correction utilisateur" if n.original_pitch is not None else "basic-pitch")
+             for n in req.notes if n.end > n.start]
+    events, report = build_events(notes, req.tempo, req.level, inst.max_polyphony, inst.pitch_range(req.options))
     if not events:
         raise HTTPException(422, "Aucune note exploitable à ce niveau. Essayez le niveau Expert.")
     try:
-        return inst.tablature(events, req.level, req.options)
+        tab = inst.tablature(events, req.level, req.options)
     except ValueError as exc:
         raise HTTPException(400, str(exc))
+    tab.summary["cleanup"] = report
+    uncertain = sum(n.get("uncertain", False) for e in tab.events for n in e["notes"])
+    tab.summary["uncertain"] = uncertain
+    total = max(1, tab.summary.get("total", 1))
+    if uncertain / total > 0.35:
+        tab.warnings.insert(0, f"{uncertain} note(s) sur {total} sont incertaines : l'enregistrement est difficile "
+                               "à analyser (plusieurs instruments, bruit, notes très rapides). Vérifiez-les à l'oreille "
+                               "et corrigez-les si besoin.")
+    return tab
 
 
 @app.post("/api/tablature")
