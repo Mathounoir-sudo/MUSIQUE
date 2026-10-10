@@ -1,0 +1,11 @@
+# Python
+backend/.venv/
+__pycache__/
+.pytest_cache/
+backend/tests/fixtures/
+# Node
+frontend/node_modules/
+frontend/dist/
+# Divers
+.DS_Store
+*.log
